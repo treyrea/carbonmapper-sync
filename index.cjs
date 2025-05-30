@@ -5,7 +5,7 @@ const { createClient } = require("@supabase/supabase-js");
 const SUPABASE_URL = "https://loarybepuwfclbxaovro.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...";
 const TABLE_NAME = "plumes";
-const API_URL = "https://api.carbonmapper.org/plumes";
+const API_URL = "https://api.carbonmapper.org/api/v1/catalog/plumes/annotated";
 const RECIPIENT_EMAIL = "treyrea@gmail.com";
 const APP_PASSWORD = "pwcbkpzduvygkeyu"; // NO SPACES
 
