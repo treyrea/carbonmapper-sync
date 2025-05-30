@@ -1,80 +1,86 @@
-import fetch from 'node-fetch';
-import nodemailer from 'nodemailer';
+const axios = require("axios");
+const nodemailer = require("nodemailer");
+const { createClient } = require("@supabase/supabase-js");
 
-// Supabase config
-const SUPABASE_URL = 'https://loarybepuwfclbxaovro.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvYXJ5YmVwdXdmY2xieGFvdnJvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzQyODg5OCwiZXhwIjoyMDYzMDA0ODk4fQ.xatv3SN4kXbwT8EU6Hf6XmadOpoDHh0LhsYwLXaOEsE';
-const TABLE_NAME = 'plumes';
-const PRIMARY_KEY = 'id';
+// Configuration
+const SUPABASE_URL = "https://loarybepuwfclbxaovro.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvYXJ5YmVwdXdmY2xieGFvdnJvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzQyODg5OCwiZXhwIjoyMDYzMDA0ODk4fQ.xatv3SN4kXbwT8EU6Hf6XmadOpoDHh0LhsYwLXaOEsE";
+const TABLE_NAME = "plumes";
+const API_URL = "https://api.carbonmapper.org/plumes";
+const RECIPIENT_EMAIL = "treyrea@gmail.com";
 
-// CarbonMapper config
-const API_URL = 'https://api.carbonmapper.org/api/v1/catalog/plumes/annotated?limit=1000';
-
-async function fetchCarbonMapperData() {
-  const res = await fetch(API_URL);
-  const json = await res.json();
-  const now = new Date();
-  const cutoff = new Date();
-  cutoff.setDate(now.getDate() - 90);
-
-  return json.features
-    .map(f => ({ id: f.id, ...f.properties }))
-    .filter(p => {
-      const date = new Date(p.datetime);
-      return date >= cutoff;
-    });
-}
-
-async function upsertToSupabase(records) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE_NAME}?on_conflict=${PRIMARY_KEY}`, {
-    method: 'POST',
-    headers: {
-      apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${SUPABASE_KEY}`,
-      'Content-Type': 'application/json',
-      Prefer: 'resolution=merge-duplicates'
-    },
-    body: JSON.stringify(records)
-  });
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Supabase insert error: ${err}`);
+// Email setup
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: RECIPIENT_EMAIL,
+    pass: "pwcbkpzduvygkeyu" // no spaces
   }
+});
 
-  const data = await res.json();
-  return data;
-}
-
-async function sendErrorEmail(message) {
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: 'treyrea@gmail.com',
-      pass: process.env.GMAIL_PASS // <- You’ll set this as an env var on Render
-    }
-  });
-
+async function sendErrorEmail(subject, message) {
   await transporter.sendMail({
-    from: '"CarbonMapper Alerts" <treyrea@gmail.com>',
-    to: 'treyrea@gmail.com',
-    subject: 'CarbonMapper Sync Error',
+    from: RECIPIENT_EMAIL,
+    to: RECIPIENT_EMAIL,
+    subject,
     text: message
   });
 }
 
+async function fetchCarbonMapperData() {
+  try {
+    const today = new Date();
+    const startDate = new Date(today.setDate(today.getDate() - 90)).toISOString();
+
+    const response = await axios.get(API_URL, {
+      params: {
+        limit: 1000,
+        start_date: startDate
+      }
+    });
+
+    return response.data;
+  } catch (err) {
+    await sendErrorEmail("CarbonMapper Sync Error - API Fetch Failed", err.message);
+    throw err;
+  }
+}
+
+async function upsertToSupabase(data) {
+  const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  try {
+    const { error } = await supabase.from(TABLE_NAME).upsert(data, {
+      onConflict: ["id"]
+    });
+
+    if (error) throw error;
+  } catch (err) {
+    await sendErrorEmail("CarbonMapper Sync Error - Supabase Upsert Failed", err.message);
+    throw err;
+  }
+}
+
 (async () => {
   try {
-    const plumes = await fetchCarbonMapperData();
-    if (!plumes.length) {
-      console.log('No new plumes found.');
-      return;
-    }
+    const payload = await fetchCarbonMapperData();
+    const flattened = payload.items.map(item => ({
+      id: item.id,
+      plume_id: item.plume_id,
+      gas: item.gas,
+      scene_id: item.scene_id,
+      scene_timestamp: item.scene_timestamp,
+      instrument: item.instrument,
+      mission_phase: item.mission_phase,
+      platform: item.platform,
+      emission_auto: item.emission_auto,
+      longitude: item.geometry_json?.coordinates?.[0] ?? null,
+      latitude: item.geometry_json?.coordinates?.[1] ?? null
+    }));
 
-    const inserted = await upsertToSupabase(plumes);
-    console.log(`Successfully upserted ${inserted.length} records.`);
+    await upsertToSupabase(flattened);
+    console.log("✅ Sync successful");
   } catch (err) {
-    console.error('Error occurred:', err.message);
-    await sendErrorEmail(`Error occurred during sync:\n\n${err.message}`);
+    console.error("❌ Sync failed:", err.message);
   }
 })();
