@@ -3,13 +3,11 @@ const nodemailer = require("nodemailer");
 const { createClient } = require("@supabase/supabase-js");
 
 const SUPABASE_URL = "https://loarybepuwfclbxaovro.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvYXJ5YmVwdXdmY2xieGFvdnJvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzQyODg5OCwiZXhwIjoyMDYzMDA0ODk4fQ.xatv3SN4kXbwT8EU6Hf6XmadOpoDHh0LhsYwLXaOEsE";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...";
 const TABLE_NAME = "plumes";
 const API_URL = "https://api.carbonmapper.org/plumes";
 const RECIPIENT_EMAIL = "treyrea@gmail.com";
-
-// Replace this with your Gmail app password — no spaces!
-const APP_PASSWORD = "pwcbkpzduvygkeyu";
+const APP_PASSWORD = "pwcbkpzduvygkeyu"; // NO SPACES
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -27,7 +25,7 @@ async function sendErrorEmail(subject, message) {
       subject,
       text: message
     });
-    console.log("🚨 Error email sent.");
+    console.log("📧 Error alert sent.");
   } catch (err) {
     console.error("❌ Failed to send error email:", err.message);
   }
@@ -45,13 +43,15 @@ async function fetchCarbonMapperData() {
       }
     });
 
+    console.log("📦 Raw API response:", response.data);
+
     if (!response.data || !Array.isArray(response.data.items)) {
-      throw new Error("Invalid or missing data format in CarbonMapper API response");
+      throw new Error("CarbonMapper API returned unexpected data format");
     }
 
     return response.data.items;
   } catch (err) {
-    await sendErrorEmail("CarbonMapper Sync Error - API Fetch Failed", err.message);
+    await sendErrorEmail("API Fetch Failed", err.message);
     throw err;
   }
 }
@@ -62,10 +62,9 @@ async function upsertToSupabase(data) {
     const { error } = await supabase.from(TABLE_NAME).upsert(data, {
       onConflict: ["id"]
     });
-
     if (error) throw error;
   } catch (err) {
-    await sendErrorEmail("CarbonMapper Sync Error - Supabase Upsert Failed", err.message);
+    await sendErrorEmail("Supabase Upsert Failed", err.message);
     throw err;
   }
 }
@@ -88,8 +87,8 @@ async function upsertToSupabase(data) {
     }));
 
     await upsertToSupabase(flattened);
-    console.log("✅ Sync successful");
+    console.log("✅ Sync completed successfully.");
   } catch (err) {
-    console.error("❌ Final error:", err.message);
+    console.error("💥 Final script error:", err.message);
   }
 })();
