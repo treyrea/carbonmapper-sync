@@ -1,10 +1,10 @@
 {
   "name": "carbonmapper-sync",
   "version": "1.0.0",
-  "main": "index.cjs",
-  "type": "commonjs",
+  "main": "index.mjs",
+  "type": "module",
   "scripts": {
-    "start": "node index.cjs"
+    "start": "node index.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.8",

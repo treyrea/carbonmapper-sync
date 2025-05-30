@@ -1,6 +1,6 @@
-const axios = require("axios");
-const nodemailer = require("nodemailer");
-const { createClient } = require("@supabase/supabase-js");
+import axios from "axios";
+import nodemailer from "nodemailer";
+import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = "https://loarybepuwfclbxaovro.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...";
