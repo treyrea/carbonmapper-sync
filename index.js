@@ -3,7 +3,7 @@ import nodemailer from "nodemailer";
 import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = "https://loarybepuwfclbxaovro.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvYXJ5YmVwdXdmY2xieGFvdnJvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzQyODg5OCwiZXhwIjoyMDYzMDA0ODk4fQ.xatv3SN4kXbwT8EU6Hf6XmadOpoDHh0LhsYwLXaOEsE";
 const TABLE_NAME = "plumes";
 const API_URL = "https://api.carbonmapper.org/api/v1/catalog/plumes/annotated";
 const RECIPIENT_EMAIL = "treyrea@gmail.com";
